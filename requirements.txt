@@ -1,0 +1,9 @@
+ultralytics>=8.2.0
+torch
+torchvision
+numpy
+pandas
+pyyaml
+scikit-learn
+huggingface_hub>=0.16.0
+tqdm
