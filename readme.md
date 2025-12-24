@@ -1,14 +1,26 @@
-# YOLO remote training (Vast.ai)
+# 1) скопировать веса в корень, чтобы проще запускать
+cp zap_m_full/weights/best.pt ./best.pt
 
-## 1) Setup (inside Vast instance)
-```bash
-sudo apt-get update
-sudo apt-get install -y python3-venv git
+# 2) Инструкция запуска проверки (ROC AUC + таблицы) на датасете в формате Ultralytics Object Detection (экспорт CVAT):
 
-git clone <YOUR_GITHUB_REPO_URL>
-cd yolo-remote-train
+1) Создать и активировать окружение:
+   python -m venv .venv
+   # Linux/macOS:
+   source .venv/bin/activate
+   # Windows PowerShell:
+   .\.venv\Scripts\Activate.ps1
 
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -U pip
-pip install -r requirements.txt
+2) Установить зависимости:
+   pip install -r requirements.txt
+
+3) Запустить оценку на датасете преподавателя:
+   python scripts/evaluate.py --data /path/to/data.yaml --weights best.pt --split auto --device cpu --outdir out
+
+   Если есть CUDA:
+   python scripts/evaluate.py --data /path/to/data.yaml --weights best.pt --split auto --device cuda:0 --outdir out
+
+Результаты будут сохранены в out/:
+- out/summary.json (включая macro_roc_auc)
+- out/per_class_auc.csv
+- out/per_class_threshold.csv
+EOF

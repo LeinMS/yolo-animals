@@ -5,32 +5,26 @@ from ultralytics import YOLO
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--data", required=True, help="Path to data_split.yaml")
-    ap.add_argument("--model", default="yolo12n.pt", help="e.g. yolo12n.pt or yolo11n.pt")
+    ap.add_argument("--data", required=True)
+    ap.add_argument("--model", default="yolo11m.pt")
     ap.add_argument("--imgsz", type=int, default=640)
     ap.add_argument("--batch", type=int, default=16)
     ap.add_argument("--freeze-layers", type=int, default=10)
     ap.add_argument("--freeze-epochs", type=int, default=5)
-    ap.add_argument("--epochs", type=int, default=60, help="Total epochs for full finetune stage")
+    ap.add_argument("--epochs", type=int, default=60)
     ap.add_argument("--project", default="runs/detect")
     ap.add_argument("--name", default="exp")
-    ap.add_argument("--device", default=None, help="cuda:0 / 0 / cpu. If None -> auto")
+    ap.add_argument("--device", default=None)
     ap.add_argument("--seed", type=int, default=42)
     args = ap.parse_args()
 
-    data_path = Path(args.data).resolve()
-    if not data_path.exists():
-        raise FileNotFoundError(data_path)
+    device = args.device if args.device is not None else (0 if torch.cuda.is_available() else "cpu")
+    data_path = str(Path(args.data).resolve())
 
-    if args.device is None:
-        device = 0 if torch.cuda.is_available() else "cpu"
-    else:
-        device = args.device
-
-    # Stage 1: freeze backbone
+    # Stage 1
     model = YOLO(args.model)
-    model.train(
-        data=str(data_path),
+    r1 = model.train(
+        data=data_path,
         epochs=args.freeze_epochs,
         imgsz=args.imgsz,
         batch=args.batch,
@@ -41,15 +35,17 @@ def main():
         seed=args.seed,
     )
 
-    best1 = Path(args.project) / f"{args.name}_freeze" / "weights" / "best.pt"
+    save1 = Path(r1.save_dir) if hasattr(r1, "save_dir") else Path(args.project) / f"{args.name}_freeze"
+    best1 = save1 / "weights" / "best.pt"
     if not best1.exists():
-        # fallback: last.pt
-        best1 = Path(args.project) / f"{args.name}_freeze" / "weights" / "last.pt"
+        best1 = save1 / "weights" / "last.pt"
+    if not best1.exists():
+        raise FileNotFoundError(f"Cannot find weights after stage1 in {save1}")
 
-    # Stage 2: full finetune
+    # Stage 2
     model = YOLO(str(best1))
-    model.train(
-        data=str(data_path),
+    r2 = model.train(
+        data=data_path,
         epochs=args.epochs,
         imgsz=args.imgsz,
         batch=args.batch,
@@ -60,7 +56,8 @@ def main():
         seed=args.seed,
     )
 
-    best2 = Path(args.project) / f"{args.name}_full" / "weights" / "best.pt"
+    save2 = Path(r2.save_dir) if hasattr(r2, "save_dir") else Path(args.project) / f"{args.name}_full"
+    best2 = save2 / "weights" / "best.pt"
     print(f"Done. Best weights: {best2}")
 
 if __name__ == "__main__":
